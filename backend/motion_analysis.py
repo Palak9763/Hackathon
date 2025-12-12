@@ -5,14 +5,16 @@ import time
 
 BREATHING_LOW = 0.1
 BREATHING_HIGH = 0.5
-breathing_signal_buffer = deque(maxlen=150)
+BREATHING_BUFFER_SIZE = 150 
+breathing_signal_buffer = deque(maxlen=BREATHING_BUFFER_SIZE)
+br_history = deque(maxlen=4) 
 last_blink_time = 0.0
 blink_rate_history = deque(maxlen=5)
 
 def process_breathing_signal(brightness_mean: float) -> float | None:
     breathing_signal_buffer.append(brightness_mean)
     
-    if len(breathing_signal_buffer) < 80:
+    if len(breathing_signal_buffer) < 100:
         return None
 
     signal_array = np.array(breathing_signal_buffer)
@@ -39,15 +41,19 @@ def process_breathing_signal(brightness_mean: float) -> float | None:
         max_index = valid_indices[0][np.argmax(fft_values[valid_indices])]
         dominant_freq = fft_freqs[max_index]
         breathing_rate = dominant_freq * 60.0
-        return round(float(np.clip(breathing_rate, 10, 25)), 1)
+        
+        br_history.append(breathing_rate)
+        stable_br = np.mean(br_history)
+        
+        return round(float(np.clip(stable_br, 10, 25)), 1)
     
     return None
 
 def detect_blink(ear_value: float | None) -> float | None:
     global last_blink_time, blink_rate_history
-    
     current_time = time.time()
-    if current_time - last_blink_time > np.random.uniform(3, 6):
+    
+    if current_time - last_blink_time > np.random.uniform(3, 6): 
         rate = 60.0 / (current_time - last_blink_time if last_blink_time > 0 else 5)
         blink_rate_history.append(rate)
         last_blink_time = current_time
