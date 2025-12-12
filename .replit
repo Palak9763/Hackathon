@@ -1,2 +1,4 @@
+modules = ["python-3.11", "nodejs-20"]
 [agent]
 expertMode = true
+integrations = ["javascript_websocket:1.0.0"]
