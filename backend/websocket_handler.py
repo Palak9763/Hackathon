@@ -11,14 +11,17 @@ from .database import get_db
 from .models import HealthLog
 
 def decode_base64_image(base64_string: str) -> np.ndarray | None:
-    if ',' in base64_string:
-        base64_string = base64_string.split(',')[1]
     try:
-        image_data = base64.b64decode(base64_string)
-        image = np.frombuffer(image_data, np.uint8)
-        frame = cv2.imdecode(image, cv2.IMREAD_COLOR)
+        if ',' in base64_string:
+            base64_string = base64_string.split(',')[1]
+        image_bytes = base64.b64decode(base64_string)
+        nparr = np.frombuffer(image_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if frame is None or frame.size == 0:
+            return None
         return frame
-    except Exception:
+    except Exception as e:
+        print(f"Frame decode error: {e}")
         return None
 
 async def websocket_endpoint(websocket: WebSocket):
@@ -90,5 +93,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 db.commit()
                 last_db_save = time.time()
 
-    except Exception:
-        db.close()
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        try:
+            db.close()
+        except:
+            pass
